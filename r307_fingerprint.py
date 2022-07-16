@@ -1,17 +1,23 @@
 # create an interface to communicate with sensor via my pc
 from serial import Serial
+import time
 
 HEADER = bytes.fromhex('EF01')
 
 PID_COMMAND = bytes.fromhex('01')
 PID_ACK = bytes.fromhex('07')
+PID_DATA = bytes.fromhex('02')
+PID_EOD = bytes.fromhex('08')
 
 IC_VERIFY_PASSWORD = bytes.fromhex('13')
+IC_GENERATE_IMAGE = bytes.fromhex('01')
+IC_DOWNLOAD_IMAGE = bytes.fromhex('0a')
 
 CC_SUCCESS = bytes.fromhex('00')
 CC_ERROR = bytes.fromhex('01')
 CC_WRONG_PASS = bytes.fromhex('13')
-
+CC_FINGER_NOT_DETECTED = bytes.fromhex('02')
+CC_FAILED_TO_COLLECT_FINGER = bytes.fromhex('03')
 
 # download char buffer
 # download image
@@ -50,15 +56,14 @@ class Sensor:
         return checksum.to_bytes(2, byteorder='big')
 
     def send_packet(self, pid, package_len, content):
-        checksum = self.checksum(pid, package_len,
-                                 IC_VERIFY_PASSWORD + self._password)
+        checksum = self.checksum(pid, package_len, content)
         # Getting value of checksum
 
         self._serial.write(HEADER)
         self._serial.write(self._address)
-        self._serial.write(PID_COMMAND)
+        self._serial.write(pid)
         self._serial.write(package_len.to_bytes(2,byteorder='big'))
-        self._serial.write(IC_VERIFY_PASSWORD + self._password)
+        self._serial.write(content)
         self._serial.write(checksum)
 
     def recieve_packet(self):
@@ -106,5 +111,27 @@ class Sensor:
         else:
             raise Exception("Unrecognised confirmation code")
 
+    def generate_image(self):
+        time.sleep(2)
+        package_len = 3
+        self.send_packet(PID_COMMAND, package_len, IC_GENERATE_IMAGE)
 
-Sensor('/dev/ttyUSB0', 57600)
+        content_rcv = self.recieve_packet()
+        cc = content_rcv
+
+
+        if cc == CC_SUCCESS:
+            print("Finger Collection Success")
+        elif cc == CC_ERROR:
+            raise Exception("error when receiving package")
+        elif cc == CC_FINGER_NOT_DETECTED:
+            raise Exception("can’t detect finger")
+        elif cc == CC_FAILED_TO_COLLECT_FINGER:
+            raise Exception("fail to collect finger;")
+        else:
+            raise Exception("Unrecognised confirmation code")
+
+
+sensor = Sensor('/dev/ttyUSB0', 57600)
+sensor.generate_image()
+
