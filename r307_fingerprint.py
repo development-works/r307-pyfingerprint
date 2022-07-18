@@ -1,6 +1,7 @@
-# create an interface to communicate with sensor via my pc
+# create an interhface to communicate with sensor via my pc
 from serial import Serial
 import time
+from PIL import Image
 
 HEADER = bytes.fromhex('EF01')
 
@@ -18,10 +19,15 @@ CC_ERROR = bytes.fromhex('01')
 CC_WRONG_PASS = bytes.fromhex('13')
 CC_FINGER_NOT_DETECTED = bytes.fromhex('02')
 CC_FAILED_TO_COLLECT_FINGER = bytes.fromhex('03')
+CC_FAILED_DOWNLOAD_IMAGE= bytes.fromhex('0e')
+
+CHAR_BUFFER_1 = bytes.fromhex('01')
+CHAR_BUFFER_2 = bytes.fromhex('02')
 
 # download char buffer
 # download image
 # generate image
+
 class Sensor:
     def __init__(self, port, baudrate):
         self._serial = Serial(port, baudrate=baudrate, timeout=3)
@@ -35,6 +41,84 @@ class Sensor:
     # packet length = length of packet content + length of checksum
     # for data length we need to send the number of bytes(like here we have
     # 7byte of total data and checksum so we need to send "7" as input)
+
+    def verify_password(self):
+        # package_len
+        package_len = 7
+
+        self.send_packet(PID_COMMAND, package_len, IC_VERIFY_PASSWORD + self._password)
+
+        pid_rcv, content_rcv = self.recieve_packet()
+
+        cc = content_rcv
+
+        if cc == CC_SUCCESS:
+            print("Verified")
+        elif cc == CC_ERROR:
+            raise Exception("error when receiving package")
+        elif cc == CC_WRONG_PASS:
+            raise Exception("Wrong Password")
+        else:
+            raise Exception("Unrecognised confirmation code")
+
+    def generate_image(self):
+        time.sleep(2)
+        package_len = 3
+        self.send_packet(PID_COMMAND, package_len, IC_GENERATE_IMAGE)
+
+        pid_rcv, content_rcv = self.recieve_packet()
+        cc = content_rcv
+
+
+        if cc == CC_SUCCESS:
+            print("Finger Collection Success")
+        elif cc == CC_ERROR:
+            raise Exception("error when receiving package")
+        elif cc == CC_FINGER_NOT_DETECTED:
+            raise Exception("can’t detect finger")
+        elif cc == CC_FAILED_TO_COLLECT_FINGER:
+            raise Exception("fail to collect finger;")
+        else:
+            raise Exception("Unrecognised confirmation code")
+
+    def download_image(self):
+        package_len = 3
+        self.send_packet(PID_COMMAND, package_len, IC_DOWNLOAD_IMAGE)
+        pid_rcv, content_rcv = self.recieve_packet()
+
+        cc = content_rcv
+        if cc == CC_SUCCESS:
+            print("Downloading the fingerprint image")
+        elif cc == CC_ERROR:
+            raise Exception("error when receiving package for downloading "
+                            "image")
+        elif cc == CC_FAILED_DOWNLOAD_IMAGE:
+            raise Exception("Could not download image")
+        else:
+            raise Exception("Unrecognised confirmation code")
+
+        image_rcv = bytes()
+
+        with open('temp/img.jpg', 'ab') as file:
+            while True:
+                pid_rcv, content_rcv = self.recieve_packet()
+                image_rcv = image_rcv + content_rcv
+
+                if pid_rcv == PID_EOD:
+                    print("End of Data reached")
+                    break
+
+
+        #TODO: Save the File in image form
+
+        # finger_img = Image.frombytes("L", (256, 288), image_rcv)
+        # finger_img.save("./temp/FingerPrintImage.jpg")
+
+    #def generate_charfile_image(self, buffer_id):
+
+
+
+
 
     def checksum(self, pid, package_len, content):
         checksum = int.from_bytes(pid, byteorder='big') + package_len
@@ -76,8 +160,8 @@ class Sensor:
             raise Exception("Address is invalid")
 
         pid_rcv = self._serial.read(1)
-        if pid_rcv != PID_ACK:
-            raise Exception("PID is invalid")
+        '''if pid_rcv != PID_ACK:
+            raise Exception("PID is invalid")'''
 
         len_rcv = self._serial.read(2)
         len_rcv = int.from_bytes(len_rcv, byteorder='big')
@@ -88,50 +172,12 @@ class Sensor:
         if checksum_rcv != self.checksum(pid_rcv, len_rcv, content_rcv):
             raise Exception("Checksum Mismatch")
 
-        return content_rcv
+        return pid_rcv, content_rcv
 
 
-
-    def verify_password(self):
-        # package_len
-        package_len = 7
-
-        self.send_packet(PID_COMMAND, package_len, IC_VERIFY_PASSWORD + self._password)
-
-        content_rcv = self.recieve_packet()
-
-        cc = content_rcv
-
-        if cc == CC_SUCCESS:
-            print("Verified")
-        elif cc == CC_ERROR:
-            raise Exception("error when receiving package")
-        elif cc == CC_WRONG_PASS:
-            raise Exception("Wrong Password")
-        else:
-            raise Exception("Unrecognised confirmation code")
-
-    def generate_image(self):
-        time.sleep(2)
-        package_len = 3
-        self.send_packet(PID_COMMAND, package_len, IC_GENERATE_IMAGE)
-
-        content_rcv = self.recieve_packet()
-        cc = content_rcv
-
-
-        if cc == CC_SUCCESS:
-            print("Finger Collection Success")
-        elif cc == CC_ERROR:
-            raise Exception("error when receiving package")
-        elif cc == CC_FINGER_NOT_DETECTED:
-            raise Exception("can’t detect finger")
-        elif cc == CC_FAILED_TO_COLLECT_FINGER:
-            raise Exception("fail to collect finger;")
-        else:
-            raise Exception("Unrecognised confirmation code")
 
 
 sensor = Sensor('/dev/ttyUSB0', 57600)
-sensor.generate_image()
+#sensor.generate_image()
+sensor.download_image()
 
