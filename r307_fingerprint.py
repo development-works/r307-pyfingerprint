@@ -13,13 +13,19 @@ PID_EOD = bytes.fromhex('08')
 IC_VERIFY_PASSWORD = bytes.fromhex('13')
 IC_GENERATE_IMAGE = bytes.fromhex('01')
 IC_DOWNLOAD_IMAGE = bytes.fromhex('0a')
+IC_GENERATE_CHARACTERISTICS = bytes.fromhex('02')
+IC_GENERATE_TEMPLATE = bytes.fromhex('05')
 
 CC_SUCCESS = bytes.fromhex('00')
 CC_ERROR = bytes.fromhex('01')
 CC_WRONG_PASS = bytes.fromhex('13')
 CC_FINGER_NOT_DETECTED = bytes.fromhex('02')
 CC_FAILED_TO_COLLECT_FINGER = bytes.fromhex('03')
-CC_FAILED_DOWNLOAD_IMAGE= bytes.fromhex('0e')
+CC_FAILED_DOWNLOAD_IMAGE = bytes.fromhex('0e')
+CC_DISORDERED_FINGERPRINT = bytes.fromhex('06')
+CC_VERY_SMALL_FINGERPRINT = bytes.fromhex('07')
+CC_INVALID_PRIMARY_IMAGE = bytes.fromhex('15')
+CC_CHAR_MISMATCH = bytes.fromhex('0a')
 
 CHAR_BUFFER_1 = bytes.fromhex('01')
 CHAR_BUFFER_2 = bytes.fromhex('02')
@@ -43,10 +49,8 @@ class Sensor:
     # 7byte of total data and checksum so we need to send "7" as input)
 
     def verify_password(self):
-        # package_len
-        package_len = 7
 
-        self.send_packet(PID_COMMAND, package_len, IC_VERIFY_PASSWORD + self._password)
+        self.send_packet(PID_COMMAND, IC_VERIFY_PASSWORD + self._password)
 
         pid_rcv, content_rcv = self.recieve_packet()
 
@@ -63,8 +67,7 @@ class Sensor:
 
     def generate_image(self):
         time.sleep(2)
-        package_len = 3
-        self.send_packet(PID_COMMAND, package_len, IC_GENERATE_IMAGE)
+        self.send_packet(PID_COMMAND, IC_GENERATE_IMAGE)
 
         pid_rcv, content_rcv = self.recieve_packet()
         cc = content_rcv
@@ -82,11 +85,11 @@ class Sensor:
             raise Exception("Unrecognised confirmation code")
 
     def download_image(self):
-        package_len = 3
-        self.send_packet(PID_COMMAND, package_len, IC_DOWNLOAD_IMAGE)
+        self.send_packet(PID_COMMAND, IC_DOWNLOAD_IMAGE)
         pid_rcv, content_rcv = self.recieve_packet()
 
         cc = content_rcv
+
         if cc == CC_SUCCESS:
             print("Downloading the fingerprint image")
         elif cc == CC_ERROR:
@@ -114,10 +117,47 @@ class Sensor:
         # finger_img = Image.frombytes("L", (256, 288), image_rcv)
         # finger_img.save("./temp/FingerPrintImage.jpg")
 
-    #def generate_charfile_image(self, buffer_id):
+    def generate_charfile_image(self, buffer_id):
+        self.send_packet(PID_COMMAND,
+                         IC_GENERATE_CHARACTERISTICS+buffer_id)
 
+        pid_rcv, content_rcv = self.recieve_packet()
+        cc = content_rcv
 
+        if cc == CC_SUCCESS:
+            print("generate character file complete;")
+        elif cc == CC_ERROR:
+            raise Exception("error when receiving package for downloading "
+                            "image")
+        elif cc == CC_DISORDERED_FINGERPRINT:
+            raise Exception("fail to generate character file due to the "
+                            "over-disorderly fingerprint image")
+        elif cc == CC_VERY_SMALL_FINGERPRINT:
+            raise Exception("fail to generate character file due to lackness "
+                            "of character point or over-smallness of fingerprint image")
+        elif cc == CC_INVALID_PRIMARY_IMAGE:
+            raise Exception("fail to generate the image for the lackness of "
+                            "valid primary image")
+        else:
+            raise Exception("Unrecognised confirmation code")
 
+    def generate_template(self):
+        self.send_packet(PID_COMMAND,
+                         IC_GENERATE_TEMPLATE)
+
+        pid_rcv, content_rcv = self.recieve_packet()
+        cc = content_rcv
+
+        if cc == CC_SUCCESS:
+            print("generate template complete")
+        elif cc == CC_ERROR:
+            raise Exception("error when receiving package for downloading "
+                            "image")
+        elif cc == CC_CHAR_MISMATCH:
+            raise Exception("fail to combine the character files. That’s, "
+                            "the character files don’t belong to one finger")
+        else:
+            raise Exception("Unrecognised confirmation code")
 
 
     def checksum(self, pid, package_len, content):
@@ -139,7 +179,10 @@ class Sensor:
 
         return checksum.to_bytes(2, byteorder='big')
 
-    def send_packet(self, pid, package_len, content):
+    def send_packet(self, pid, content):
+
+        package_len = len(content) + 2
+
         checksum = self.checksum(pid, package_len, content)
         # Getting value of checksum
 
@@ -176,8 +219,9 @@ class Sensor:
 
 
 
-
 sensor = Sensor('/dev/ttyUSB0', 57600)
-#sensor.generate_image()
-sensor.download_image()
-
+# sensor.generate_image()
+#sensor.download_image()
+# sensor.generate_charfile_image(CHAR_BUFFER_1)
+# sensor.generate_charfile_image(CHAR_BUFFER_2)
+sensor.generate_template()
