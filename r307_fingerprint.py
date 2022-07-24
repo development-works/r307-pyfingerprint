@@ -1,4 +1,3 @@
-# create an interhface to communicate with sensor via my pc
 from serial import Serial
 import time
 from PIL import Image
@@ -33,29 +32,23 @@ CHAR_BUFFER_1 = bytes.fromhex('01')
 CHAR_BUFFER_2 = bytes.fromhex('02')
 
 
-# download char buffer
-# download image
-# generate image
-
 class Sensor:
     def __init__(self, port, baudrate):
         self._serial = Serial(port, baudrate=baudrate, timeout=3)
         self._password = bytes.fromhex('00000000')
         self._address = bytes.fromhex('FFFFFFFF')
 
-        self.verify_password()
+        self.__verify_password()
 
-    # 0000 0000 0000 0111
-    #              0    7
-    # packet length = length of packet content + length of checksum
-    # for data length we need to send the number of bytes(like here we have
-    # 7byte of total data and checksum so we need to send "7" as input)
+    def __verify_password(self):
+        """
 
-    def verify_password(self):
+        :return:
+        """
 
-        self.send_packet(PID_COMMAND, IC_VERIFY_PASSWORD + self._password)
+        self.__send_packet(PID_COMMAND, IC_VERIFY_PASSWORD + self._password)
 
-        pid_rcv, content_rcv = self.receive_packet()
+        pid_rcv, content_rcv = self.__receive_packet()
 
         cc = content_rcv
 
@@ -69,10 +62,14 @@ class Sensor:
             raise Exception("Unrecognised confirmation code")
 
     def generate_image(self):
-        time.sleep(2)
-        self.send_packet(PID_COMMAND, IC_GENERATE_IMAGE)
+        """
 
-        pid_rcv, content_rcv = self.receive_packet()
+        :return:
+        """
+        time.sleep(2)
+        self.__send_packet(PID_COMMAND, IC_GENERATE_IMAGE)
+
+        pid_rcv, content_rcv = self.__receive_packet()
         cc = content_rcv
 
         if cc == CC_SUCCESS:
@@ -87,8 +84,12 @@ class Sensor:
             raise Exception("Unrecognised confirmation code")
 
     def download_image(self):
-        self.send_packet(PID_COMMAND, IC_DOWNLOAD_IMAGE)
-        pid_rcv, content_rcv = self.receive_packet()
+        """
+
+        :return:
+        """
+        self.__send_packet(PID_COMMAND, IC_DOWNLOAD_IMAGE)
+        pid_rcv, content_rcv = self.__receive_packet()
 
         cc = content_rcv
 
@@ -106,7 +107,7 @@ class Sensor:
 
         with open('temp/img.jpg', 'ab') as file:
             while True:
-                pid_rcv, content_rcv = self.receive_packet()
+                pid_rcv, content_rcv = self.__receive_packet()
                 image_rcv = image_rcv + content_rcv
 
                 if pid_rcv == PID_EOD:
@@ -119,10 +120,15 @@ class Sensor:
         # finger_img.save("./temp/FingerPrintImage.jpg")
 
     def generate_charfile_image(self, buffer_id):
-        self.send_packet(PID_COMMAND,
-                         IC_GENERATE_CHARACTERISTICS + buffer_id)
+        """
 
-        pid_rcv, content_rcv = self.receive_packet()
+        :param buffer_id:
+        :return:
+        """
+        self.__send_packet(PID_COMMAND,
+                           IC_GENERATE_CHARACTERISTICS + buffer_id)
+
+        pid_rcv, content_rcv = self.__receive_packet()
         cc = content_rcv
 
         if cc == CC_SUCCESS:
@@ -144,10 +150,14 @@ class Sensor:
             raise Exception("Unrecognised confirmation code")
 
     def generate_template(self):
-        self.send_packet(PID_COMMAND,
-                         IC_GENERATE_TEMPLATE)
+        """
 
-        pid_rcv, content_rcv = self.receive_packet()
+        :return:
+        """
+        self.__send_packet(PID_COMMAND,
+                           IC_GENERATE_TEMPLATE)
+
+        pid_rcv, content_rcv = self.__receive_packet()
         cc = content_rcv
 
         if cc == CC_SUCCESS:
@@ -162,8 +172,13 @@ class Sensor:
             raise Exception("Unrecognised confirmation code")
 
     def download_char_buffer(self, buffer_id):
-        self.send_packet(PID_COMMAND, IC_DOWNLOAD_CHAR_BUFFER + buffer_id)
-        pid_rcv, content_rcv = self.receive_packet()
+        """
+
+        :param buffer_id:
+        :return:
+        """
+        self.__send_packet(PID_COMMAND, IC_DOWNLOAD_CHAR_BUFFER + buffer_id)
+        pid_rcv, content_rcv = self.__receive_packet()
 
         cc = content_rcv
 
@@ -180,7 +195,7 @@ class Sensor:
         char_rcv = bytes()
 
         while True:
-            pid_rcv, content_rcv = self.receive_packet()
+            pid_rcv, content_rcv = self.__receive_packet()
             char_rcv = char_rcv + content_rcv
 
             if pid_rcv == PID_EOD:
@@ -189,7 +204,14 @@ class Sensor:
 
         print(char_rcv)
 
-    def checksum(self, pid, package_len, content):
+    def __checksum(self, pid, package_len, content):
+        """
+
+        :param pid:
+        :param package_len:
+        :param content:
+        :return:
+        """
         checksum = int.from_bytes(pid, byteorder='big') + package_len
 
         # Addition of individual bytes in content as otherwise int conversion
@@ -199,20 +221,23 @@ class Sensor:
 
         checksum = checksum & 0xFFFF
 
-        ''' 0xFFFF - to remove exception in case checksum is greater than 2 
-        bytes
-             1111 1111 1111 1111
-        0001 0011 0011 1011 1001 - Checksum
-             0011 0011 1011 1001 - result
-        '''
-
+        # 0xFFFF - to remove exception in case checksum is greater than 2
+        # bytes
+        #      1111 1111 1111 1111
+        # 0001 0011 0011 1011 1001 - Checksum
+        #      0011 0011 1011 1001 - result
         return checksum.to_bytes(2, byteorder='big')
 
-    def send_packet(self, pid, content):
+    def __send_packet(self, pid, content):
+        """
 
+        :param pid:
+        :param content:
+        :return:
+        """
         package_len = len(content) + 2
 
-        checksum = self.checksum(pid, package_len, content)
+        checksum = self.__checksum(pid, package_len, content)
         # Getting value of checksum
 
         self._serial.write(HEADER)
@@ -222,7 +247,11 @@ class Sensor:
         self._serial.write(content)
         self._serial.write(checksum)
 
-    def receive_packet(self):
+    def __receive_packet(self):
+        """
+
+        :return:
+        """
         header_rcv = self._serial.read(2)
         if header_rcv != HEADER:
             raise Exception("Acknowledgment Header invalid")
@@ -241,10 +270,48 @@ class Sensor:
         content_rcv = self._serial.read(len_rcv - 2)
 
         checksum_rcv = self._serial.read(2)
-        if checksum_rcv != self.checksum(pid_rcv, len_rcv, content_rcv):
+        if checksum_rcv != self.__checksum(pid_rcv, len_rcv, content_rcv):
             raise Exception("Checksum Mismatch")
 
         return pid_rcv, content_rcv
+
+    # Set Password - D
+
+    # Set Module Address - A
+
+    # Set module system's basic parameter - D
+
+    # Port Control - A
+
+    # Read system Parameter - D
+
+    # Read valid template number - A
+
+    # Fingerprint verification - D
+
+    # automatic fingerprint verification - A
+
+    # upload image - D
+
+    # upload character file or template - A
+
+    # To store template - D
+
+    # To Read template from flash library - A
+
+    # To delete template - D
+
+    # To empty finger library - A
+
+    # To carry out precise matching of two fingerprint template - D
+
+    # To search finger library - A
+
+    # To Generate a random code - D
+
+    # To Write Notepad - A
+
+    # To Read Notepad - D
 
 
 sensor = Sensor('/dev/ttyUSB0', 57600)
