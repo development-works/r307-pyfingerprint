@@ -45,12 +45,7 @@ class Sensor:
 
         :return:
         """
-
-        self.__send_packet(PID_COMMAND, IC_VERIFY_PASSWORD + self._password)
-
-        pid_rcv, content_rcv = self.__receive_packet()
-
-        cc = content_rcv
+        cc = self.__send_command(IC_VERIFY_PASSWORD, self._password);
 
         if cc == CC_SUCCESS:
             print("Verified")
@@ -67,10 +62,7 @@ class Sensor:
         :return:
         """
         time.sleep(2)
-        self.__send_packet(PID_COMMAND, IC_GENERATE_IMAGE)
-
-        pid_rcv, content_rcv = self.__receive_packet()
-        cc = content_rcv
+        cc = self.__send_command(IC_GENERATE_IMAGE);
 
         if cc == CC_SUCCESS:
             print("Finger Collection Success")
@@ -88,10 +80,7 @@ class Sensor:
 
         :return:
         """
-        self.__send_packet(PID_COMMAND, IC_DOWNLOAD_IMAGE)
-        pid_rcv, content_rcv = self.__receive_packet()
-
-        cc = content_rcv
+        cc = self.__send_command(IC_DOWNLOAD_IMAGE);
 
         if cc == CC_SUCCESS:
             print("Downloading the fingerprint image")
@@ -125,11 +114,7 @@ class Sensor:
         :param buffer_id:
         :return:
         """
-        self.__send_packet(PID_COMMAND,
-                           IC_GENERATE_CHARACTERISTICS + buffer_id)
-
-        pid_rcv, content_rcv = self.__receive_packet()
-        cc = content_rcv
+        cc = self.__send_command(IC_GENERATE_CHARACTERISTICS, buffer_id);
 
         if cc == CC_SUCCESS:
             print("generate character file complete;")
@@ -154,11 +139,7 @@ class Sensor:
 
         :return:
         """
-        self.__send_packet(PID_COMMAND,
-                           IC_GENERATE_TEMPLATE)
-
-        pid_rcv, content_rcv = self.__receive_packet()
-        cc = content_rcv
+        cc = self.__send_command(IC_GENERATE_TEMPLATE);
 
         if cc == CC_SUCCESS:
             print("generate template complete")
@@ -177,10 +158,11 @@ class Sensor:
         :param buffer_id:
         :return:
         """
-        self.__send_packet(PID_COMMAND, IC_DOWNLOAD_CHAR_BUFFER + buffer_id)
-        pid_rcv, content_rcv = self.__receive_packet()
+        # self.__send_packet(PID_COMMAND, IC_DOWNLOAD_CHAR_BUFFER + buffer_id)
+        # pid_rcv, content_rcv = self.__receive_packet()
 
-        cc = content_rcv
+        cc = self.__send_command(IC_DOWNLOAD_CHAR_BUFFER, buffer_id);
+
 
         if cc == CC_SUCCESS:
             print("Downloading the fingerprint image")
@@ -275,6 +257,25 @@ class Sensor:
 
         return pid_rcv, content_rcv
 
+    def __send_command(self, command, *args):
+        """
+
+        :param command: bytes
+        :param args: other parameters for the command
+        :return:
+        """
+        data = command
+        for arg in args:
+            data += arg
+
+        self.__send_packet(PID_COMMAND, data)
+        pid, cc = self.__receive_packet()
+
+        if pid != PID_ACK:
+            raise Exception("Received packet in not an acknowledgement packet")
+
+        return cc
+
     # Set Password - D
 
     # Set Module Address - A
@@ -315,9 +316,9 @@ class Sensor:
 
 
 sensor = Sensor('/dev/ttyUSB0', 57600)
-# sensor.generate_image()
+sensor.generate_image()
 # sensor.download_image()
-# sensor.generate_charfile_image(CHAR_BUFFER_1)
+sensor.generate_charfile_image(CHAR_BUFFER_1)
 # sensor.generate_charfile_image(CHAR_BUFFER_2)
 # sensor.generate_template()
-sensor.download_char_buffer(CHAR_BUFFER_1)
+# sensor.download_char_buffer(CHAR_BUFFER_1)
