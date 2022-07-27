@@ -15,6 +15,9 @@ IC_DOWNLOAD_IMAGE = bytes.fromhex('0a')
 IC_GENERATE_CHARACTERISTICS = bytes.fromhex('02')
 IC_GENERATE_TEMPLATE = bytes.fromhex('05')
 IC_DOWNLOAD_CHAR_BUFFER = bytes.fromhex('08')
+IC_SET_PASSWORD = bytes.fromhex('12')
+IC_SET_PARAMETERS = bytes.fromhex('0e')
+IC_READ_PARAMETERS = bytes.fromhex('0f')
 
 CC_SUCCESS = bytes.fromhex('00')
 CC_ERROR = bytes.fromhex('01')
@@ -27,9 +30,24 @@ CC_VERY_SMALL_FINGERPRINT = bytes.fromhex('07')
 CC_INVALID_PRIMARY_IMAGE = bytes.fromhex('15')
 CC_CHAR_MISMATCH = bytes.fromhex('0a')
 CC_TEMPLATE_DWNLD_ERR = bytes.fromhex('0d')
+CC_WRONG_REG_NUM = bytes.fromhex('1a')
+
+# PN = parameter number
+PN_BAUD_RATE = bytes.fromhex('04')
+PN_SECURITY_LEVEL = bytes.fromhex('05')
+PN_PACKAGE_LEN = bytes.fromhex('06')
+
 
 CHAR_BUFFER_1 = bytes.fromhex('01')
 CHAR_BUFFER_2 = bytes.fromhex('02')
+KEY_STATUS_REGISTER = 0
+KEY_SYSTEM_IDENTIFIER_CODE = 1
+KEY_FINGER_LIBRARY_SIZE = 2
+KEY_SECURITY_LEVEL = 3
+KEY_DEVICE_ADDRESS = 4
+KEY_DATA_PACKET_SIZE = 5
+KEY_BAUD_SETTINGS = 6
+
 
 
 class Sensor:
@@ -248,6 +266,7 @@ class Sensor:
 
         len_rcv = self._serial.read(2)
         len_rcv = int.from_bytes(len_rcv, byteorder='big')
+        print(len_rcv)
 
         content_rcv = self._serial.read(len_rcv - 2)
 
@@ -277,14 +296,88 @@ class Sensor:
         return cc
 
     # Set Password - D
+    def set_password(self, new_password):
+        if len(new_password) !=4:
+            raise Exception("password set failed, please enter 4 bytes "
+                            "password")
+
+        cc = self.__send_command(IC_SET_PASSWORD, new_password)
+
+        if cc == CC_SUCCESS:
+            print("Password setting complete")
+        elif cc == CC_ERROR:
+            raise Exception("error when receiving package for downloading "
+                            "image")
+        else:
+            raise Exception("Unrecognised confirmation code")
+
+
 
     # Set Module Address - A
 
     # Set module system's basic parameter - D
 
+    def __set_parameters(self, pn, n):
+        param_bytes = n.to_bytes(1, byteorder='big')
+        cc = self.__send_command(IC_SET_PARAMETERS, pn, param_bytes)
+
+        if cc == CC_SUCCESS:
+            print("Parameter set successfully")
+        elif cc == CC_ERROR:
+            raise Exception("error when receiving package for downloading "
+                            "image")
+        elif cc == CC_WRONG_REG_NUM:
+            raise Exception("wrong register number;")
+        else:
+            raise Exception("Unrecognised confirmation code")
+
+    def set_baudrate(self, n):
+        if n < 1 or n > 12:
+            raise ValueError('Invalid value for baudrate')
+
+        self.__set_parameters(PN_BAUD_RATE, n)
+
+    def set_security_level(self, n):
+        if n < 1 or n > 5:
+            raise ValueError('Invalid value for security')
+
+        self.__set_parameters(PN_SECURITY_LEVEL, n)
+
+    def set_package_length(self, n):
+        if n < 0 or n > 3:
+            raise ValueError('Invalid value for package length')
+
+        self.__set_parameters(PN_PACKAGE_LEN, n)
+
+
     # Port Control - A
 
     # Read system Parameter - D
+    def read_parameters(self):
+        data = self.__send_command(IC_READ_PARAMETERS)
+        print(data)
+
+        cc = data[0:1]
+        print(cc)
+        param = data[1:]
+
+        param_dict = {}
+        if cc == CC_SUCCESS:
+            param_dict[KEY_STATUS_REGISTER] = param[0:2]
+            param_dict[KEY_SYSTEM_IDENTIFIER_CODE] = param[2:4]
+            param_dict[KEY_FINGER_LIBRARY_SIZE] = param[4:6]
+            param_dict[KEY_SECURITY_LEVEL] = param[6:8]
+            param_dict[KEY_DEVICE_ADDRESS] = param[8:12]
+            param_dict[KEY_DATA_PACKET_SIZE] = param[12:14]
+            param_dict[KEY_BAUD_SETTINGS] = param[14:16]
+
+            return param_dict
+
+        elif cc == CC_ERROR:
+            raise Exception("error when receiving package for downloading "
+                            "image")
+        else:
+            raise Exception("Unrecognised confirmation code")
 
     # Read valid template number - A
 
@@ -316,9 +409,11 @@ class Sensor:
 
 
 sensor = Sensor('/dev/ttyUSB0', 57600)
-sensor.generate_image()
+# sensor.generate_image()
 # sensor.download_image()
-sensor.generate_charfile_image(CHAR_BUFFER_1)
+#sensor.generate_charfile_image(CHAR_BUFFER_1)
 # sensor.generate_charfile_image(CHAR_BUFFER_2)
 # sensor.generate_template()
 # sensor.download_char_buffer(CHAR_BUFFER_1)
+param_dict = sensor.read_parameters()
+print(param_dict)
