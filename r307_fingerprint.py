@@ -52,6 +52,7 @@ KEY_SECURITY_LEVEL = 3
 KEY_DEVICE_ADDRESS = 4
 KEY_DATA_PACKET_SIZE = 5
 KEY_BAUD_SETTINGS = 6
+CAPTURE_TIME_4_5 = bytes.fromhex('20')
 
 
 
@@ -391,15 +392,17 @@ class Sensor:
     # automatic fingerprint verification - A
     def fingerprint_verification(self, capture_time, start_bit,
                                  search_quantity):
-        data = self.__send_command(IC_FINGERPRINT_VERIFICATION)
-        print(data)
+        #TODO : Find out start bit and search quantity
+        start_bit = start_bit.to_bytes(2, byteorder='big')
+        search_quantity = search_quantity.to_bytes(2, byteorder='big')
+        data = self.__send_command(IC_FINGERPRINT_VERIFICATION, capture_time,
+                                   start_bit, search_quantity)
 
         cc = data[0:1]
-        print(cc)
         rcv_data = data[1:]
 
         if cc == CC_SUCCESS:
-            print("generate character file complete;")
+            return rcv_data[0:2], rcv_data[2:4]
         elif cc == CC_ERROR:
             raise Exception("error when receiving package for downloading "
                             "image")
@@ -411,8 +414,9 @@ class Sensor:
                             "of character point or over-smallness of "
                             "fingerprint image")
         elif cc == CC_NO_MATCH:
-            raise Exception("No matching in the library (both the PageID and matching"
-                            "score are 0")
+            raise Exception("No matching in the library (both the PageID and "
+                            "matching "
+                            "score are 0)")
         else:
             raise Exception("Unrecognised confirmation code")
 
@@ -425,7 +429,7 @@ class Sensor:
     def store_template(self, buffer_id, page_id):
         #TODO: Find out correct page_id
 
-        page_id = page_id.to_bytes(1, byteorder='big')
+        page_id = page_id.to_bytes(2, byteorder='big')
         cc = self.__send_command(IC_STORE_TEMPLATE, buffer_id, page_id)
 
         if cc == CC_SUCCESS:
@@ -467,4 +471,6 @@ sensor = Sensor('/dev/ttyUSB0', 57600)
 #param_dict = sensor.read_parameters()
 #print(param_dict)
 
-sensor.store_template(CHAR_BUFFER_1, 4)
+#sensor.store_template(CHAR_BUFFER_1, 1)
+page_id, match_id = sensor.fingerprint_verification(CAPTURE_TIME_4_5, 1, 1)
+print(page_id, match_id)
