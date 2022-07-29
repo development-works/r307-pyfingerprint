@@ -511,6 +511,21 @@ class Sensor:
     # To search finger library - A
 
     # To Generate a random code - D
+    def get_random_number(self):
+        rcv_data = self.__send_command(IC_RANDOM_NUMBER)
+
+        cc = rcv_data[0:1]
+        random_number = rcv_data[1:]
+
+        if cc == CC_SUCCESS:
+            print("Random Number generated successfully")
+            return int.from_bytes(random_number, byteorder='big')
+        elif cc == CC_ERROR:
+            raise Exception("error when receiving package for downloading "
+                            "image")
+        else:
+            raise Exception("Unrecognised confirmation code")
+
 
     # To Write Notepad - A
 
@@ -533,3 +548,4 @@ sensor = Sensor('/dev/ttyUSB0', 57600)
 # sensor.delete_template(1, 1)
 # match_score = sensor.match_template()
 # print(match_score)
+print(sensor.get_random_number())
