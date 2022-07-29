@@ -19,6 +19,7 @@ IC_SET_ADDRESS = bytes.fromhex('15')
 IC_SET_PORT_CONTROL = bytes.fromhex('17')
 IC_READ_TEMPLATE_NUM = bytes.fromhex('1d')
 IC_AUTO_FINGERPRINT_VERIFICATION = bytes.fromhex('34')
+IC_READ_TEMPLATE = bytes.fromhex('07')
 
 CC_SUCCESS = bytes.fromhex('00')
 CC_ERROR = bytes.fromhex('01')
@@ -33,6 +34,8 @@ CC_CHAR_MISMATCH = bytes.fromhex('0a')
 CC_TEMPLATE_DWNLD_ERR = bytes.fromhex('0d')
 CC_FAILED_TO_OPERATE_PORT = bytes.fromhex('1d')
 CC_NO_MATCHING_FINGERPRINT = bytes.fromhex('09')
+CC_READOUT_TEMPLATE_INVALID = bytes.fromhex('0c')
+CC_PAGE_ID_INVALID = bytes.fromhex('0b')
 
 CHAR_BUFFER_1 = bytes.fromhex('01')
 CHAR_BUFFER_2 = bytes.fromhex('02')
@@ -360,6 +363,28 @@ class Sensor:
     # To store template - D
 
     # To Read template from flash library - A
+    def read_template(self, buffer_id, page_id):
+        """
+
+        :param buffer_id, bytes:
+        :param page_id, int:
+        :return:
+        """
+        page_id = page_id.to_bytes(2, byteorder='big')
+        cc = self.__send_command(IC_READ_TEMPLATE, buffer_id, page_id)
+
+        if cc == CC_SUCCESS:
+            print("Read template successfully")
+        elif cc == CC_ERROR:
+            raise Exception('Failed to received package')
+        elif cc == CC_READOUT_TEMPLATE_INVALID:
+            raise Exception('Invalid readout template')
+        elif cc == CC_PAGE_ID_INVALID:
+            raise Exception('Invalid Page ID')
+        else:
+            raise Exception('Unrecognized cc')
+
+
 
     # To delete template - D
 
@@ -384,4 +409,5 @@ sensor = Sensor('/dev/ttyUSB0', 57600)
 # sensor.generate_template()
 # sensor.download_char_buffer(CHAR_BUFFER_1)
 # print(sensor.read_valid_template_num())
-print(sensor.auto_fingerprint_verification())
+# print(sensor.auto_fingerprint_verification())
+sensor.read_template(CHAR_BUFFER_1, 0)
