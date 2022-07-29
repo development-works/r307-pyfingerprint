@@ -24,6 +24,7 @@ IC_UPLOAD_IMAGE = bytes.fromhex('0b')
 IC_DELETE_TEMPLATE = bytes.fromhex('0c')
 IC_MATCH_TEMPLATE = bytes.fromhex('03')
 IC_RANDOM_NUMBER = bytes.fromhex('14')
+IC_READ_NOTEPAD = bytes.fromhex('19')
 
 CC_SUCCESS = bytes.fromhex('00')
 CC_ERROR = bytes.fromhex('01')
@@ -526,10 +527,24 @@ class Sensor:
         else:
             raise Exception("Unrecognised confirmation code")
 
-
     # To Write Notepad - A
 
     # To Read Notepad - D
+    def read_notepad(self):
+        rcv_data = self.__send_command(IC_READ_NOTEPAD)
+
+        cc = rcv_data[0:1]
+        notepad_content = rcv_data[1:]
+
+        if cc == CC_SUCCESS:
+            print("Read successful")
+            return str(notepad_content, 'UTF-8')
+        elif cc == CC_ERROR:
+            raise Exception("error when receiving package for downloading "
+                            "image")
+        else:
+            raise Exception("Unrecognised confirmation code")
+
 
 
 sensor = Sensor('/dev/ttyUSB0', 57600)
@@ -548,4 +563,5 @@ sensor = Sensor('/dev/ttyUSB0', 57600)
 # sensor.delete_template(1, 1)
 # match_score = sensor.match_template()
 # print(match_score)
-print(sensor.get_random_number())
+#print(sensor.get_random_number())
+print(sensor.read_notepad())
