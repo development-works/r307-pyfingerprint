@@ -20,6 +20,7 @@ IC_SET_PORT_CONTROL = bytes.fromhex('17')
 IC_READ_TEMPLATE_NUM = bytes.fromhex('1d')
 IC_AUTO_FINGERPRINT_VERIFICATION = bytes.fromhex('34')
 IC_READ_TEMPLATE = bytes.fromhex('07')
+IC_EMPTY_FINGERPRINT_LIBRARY = bytes.fromhex('0d')
 
 CC_SUCCESS = bytes.fromhex('00')
 CC_ERROR = bytes.fromhex('01')
@@ -36,6 +37,7 @@ CC_FAILED_TO_OPERATE_PORT = bytes.fromhex('1d')
 CC_NO_MATCHING_FINGERPRINT = bytes.fromhex('09')
 CC_READOUT_TEMPLATE_INVALID = bytes.fromhex('0c')
 CC_PAGE_ID_INVALID = bytes.fromhex('0b')
+CC_FAILED_TO_CLEAR_LIBRARY = bytes.fromhex('11')
 
 CHAR_BUFFER_1 = bytes.fromhex('01')
 CHAR_BUFFER_2 = bytes.fromhex('02')
@@ -359,7 +361,6 @@ class Sensor:
 
     # upload character file or template - A
 
-
     # To store template - D
 
     # To Read template from flash library - A
@@ -384,11 +385,20 @@ class Sensor:
         else:
             raise Exception('Unrecognized cc')
 
-
-
     # To delete template - D
 
     # To empty finger library - A
+    def empty_fingerprint_library(self):
+        cc = self.__send_command(IC_EMPTY_FINGERPRINT_LIBRARY)
+
+        if cc == CC_SUCCESS:
+            print('Finger print library emptied')
+        elif cc == CC_ERROR:
+            raise Exception('Error when receiving packet')
+        elif cc == CC_FAILED_TO_CLEAR_LIBRARY:
+            raise Exception('Failed to Clear Library')
+        else:
+            raise Exception('Unrecognized cc')
 
     # To carry out precise matching of two fingerprint template - D
 
@@ -410,4 +420,5 @@ sensor = Sensor('/dev/ttyUSB0', 57600)
 # sensor.download_char_buffer(CHAR_BUFFER_1)
 # print(sensor.read_valid_template_num())
 # print(sensor.auto_fingerprint_verification())
-sensor.read_template(CHAR_BUFFER_1, 0)
+# sensor.read_template(CHAR_BUFFER_1, 0)
+sensor.empty_fingerprint_library()
