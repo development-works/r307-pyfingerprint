@@ -295,9 +295,26 @@ class Sensor:
         else:
             raise Exception("Unable to set password, cc = " + str(cc))
 
+    # Set module system's basic parameter - D
 
+    # Port Control - A
+    def set_port_control(self, val):
+        """
 
+        :param val, bool:
+        :return:
+        """
+        zero = int(0).to_bytes(1, byteorder='big')
+        one = int(1).to_bytes(1, byteorder='big')
 
+        cc = self.__send_command(IC_SET_PORT_CONTROL, one if val else zero)
+
+        if cc == CC_SUCCESS:
+            print("port control set successfully")
+        if cc == CC_ERROR:
+            print("Error when receiving packet")
+        elif cc == CC_FAILED_TO_OPERATE_PORT:
+            raise Exception("Failed to operate communication port")
 
     # upload image - D
 
