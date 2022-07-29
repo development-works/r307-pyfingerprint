@@ -20,6 +20,9 @@ IC_SET_PARAMETERS = bytes.fromhex('0e')
 IC_READ_PARAMETERS = bytes.fromhex('0f')
 IC_FINGERPRINT_VERIFICATION = bytes.fromhex('32')
 IC_STORE_TEMPLATE = bytes.fromhex('06')
+IC_UPLOAD_IMAGE = bytes.fromhex('0b')
+IC_DELETE_TEMPLATE = bytes.fromhex('0c')
+IC_MATCH_TEMPLATE = bytes.fromhex('03')
 
 CC_SUCCESS = bytes.fromhex('00')
 CC_ERROR = bytes.fromhex('01')
@@ -36,6 +39,9 @@ CC_WRONG_REG_NUM = bytes.fromhex('1a')
 CC_NO_MATCH = bytes.fromhex('09')
 CC_WRONG_PAGE_ID = bytes.fromhex('0b')
 CC_ERROR_FLASH_WRITING = bytes.fromhex('18')
+CC_FAIL_TRANSFER_PACKET = bytes.fromhex('0e')
+CC_FAILED_DELETE = bytes.fromhex('10')
+CC_UNMATCHED_TEMPLATES = bytes.fromhex('08')
 
 # PN = parameter number
 PN_BAUD_RATE = bytes.fromhex('04')
@@ -101,7 +107,6 @@ class Sensor:
 
     def download_image(self):
         """
-
         :return:
         """
         cc = self.__send_command(IC_DOWNLOAD_IMAGE);
@@ -134,11 +139,10 @@ class Sensor:
 
     def generate_charfile_image(self, buffer_id):
         """
-
         :param buffer_id:
         :return:
         """
-        cc = self.__send_command(IC_GENERATE_CHARACTERISTICS, buffer_id);
+        cc = self.__send_command(IC_GENERATE_CHARACTERISTICS, buffer_id)
 
         if cc == CC_SUCCESS:
             print("generate character file complete;")
@@ -388,8 +392,6 @@ class Sensor:
     # Read valid template number - A
 
     # Fingerprint verification - D
-
-    # automatic fingerprint verification - A
     def fingerprint_verification(self, capture_time, start_bit,
                                  search_quantity):
         #TODO : Find out start bit and search quantity
@@ -421,7 +423,26 @@ class Sensor:
             raise Exception("Unrecognised confirmation code")
 
 
+    # automatic fingerprint verification - A
+
     # upload image - D
+    #TODO: figure out correct way to do it. There is discrepancy in
+    # documentation
+    '''def upload_image(self):
+        cc = self.__send_command(IC_UPLOAD_IMAGE)
+
+        if cc == CC_SUCCESS:
+            print("storage success")
+        elif cc == CC_ERROR:
+            raise Exception("error when receiving package for downloading "
+                            "image")
+        elif cc == CC_WRONG_PAGE_ID:
+            raise Exception("addressing PageID is beyond the finger library;")
+        elif cc == CC_ERROR_FLASH_WRITING:
+            raise Exception("error when writing Flash")
+        else:
+            raise Exception("Unrecognised confirmation code")'''
+
 
     # upload character file or template - A
 
@@ -447,10 +468,29 @@ class Sensor:
     # To Read template from flash library - A
 
     # To delete template - D
+    def delete_template(self, page_id, n):
+        page_id = page_id.to_bytes(2, byteorder='big')
+        n = n.to_bytes(2, byteorder='big')
+
+        cc = self.__send_command(IC_DELETE_TEMPLATE, page_id, n)
+
+        if cc == CC_SUCCESS:
+            print("Deleted successfully")
+        elif cc == CC_ERROR:
+            raise Exception("error when receiving package for downloading "
+                            "image")
+        elif cc == CC_FAILED_DELETE:
+            raise Exception("failed to delete templates")
+        else:
+            raise Exception("Unrecognised confirmation code")
+
+
 
     # To empty finger library - A
 
     # To carry out precise matching of two fingerprint template - D
+
+
 
     # To search finger library - A
 
@@ -472,5 +512,7 @@ sensor = Sensor('/dev/ttyUSB0', 57600)
 #print(param_dict)
 
 #sensor.store_template(CHAR_BUFFER_1, 1)
-page_id, match_id = sensor.fingerprint_verification(CAPTURE_TIME_4_5, 1, 1)
-print(page_id, match_id)
+# page_id, match_id = sensor.fingerprint_verification(CAPTURE_TIME_4_5, 1, 1)
+# print(page_id, match_id)
+
+# sensor.delete_template(1, 1)
