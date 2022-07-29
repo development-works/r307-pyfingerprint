@@ -15,6 +15,10 @@ IC_DOWNLOAD_IMAGE = bytes.fromhex('0a')
 IC_GENERATE_CHARACTERISTICS = bytes.fromhex('02')
 IC_GENERATE_TEMPLATE = bytes.fromhex('05')
 IC_DOWNLOAD_CHAR_BUFFER = bytes.fromhex('08')
+IC_SET_ADDRESS = bytes.fromhex('15')
+IC_SET_PORT_CONTROL = bytes.fromhex('17')
+IC_READ_TEMPLATE_NUM = bytes.fromhex('1d')
+IC_AUTO_FINGERPRINT_VERIFICATION = bytes.fromhex('34')
 
 CC_SUCCESS = bytes.fromhex('00')
 CC_ERROR = bytes.fromhex('01')
@@ -27,6 +31,8 @@ CC_VERY_SMALL_FINGERPRINT = bytes.fromhex('07')
 CC_INVALID_PRIMARY_IMAGE = bytes.fromhex('15')
 CC_CHAR_MISMATCH = bytes.fromhex('0a')
 CC_TEMPLATE_DWNLD_ERR = bytes.fromhex('0d')
+CC_FAILED_TO_OPERATE_PORT = bytes.fromhex('1d')
+CC_NO_MATCHING_FINGERPRINT = bytes.fromhex('09')
 
 CHAR_BUFFER_1 = bytes.fromhex('01')
 CHAR_BUFFER_2 = bytes.fromhex('02')
@@ -62,7 +68,7 @@ class Sensor:
         :return:
         """
         time.sleep(2)
-        cc = self.__send_command(IC_GENERATE_IMAGE);
+        cc = self.__send_command(IC_GENERATE_IMAGE)
 
         if cc == CC_SUCCESS:
             print("Finger Collection Success")
@@ -162,7 +168,6 @@ class Sensor:
         # pid_rcv, content_rcv = self.__receive_packet()
 
         cc = self.__send_command(IC_DOWNLOAD_CHAR_BUFFER, buffer_id);
-
 
         if cc == CC_SUCCESS:
             print("Downloading the fingerprint image")
@@ -279,22 +284,25 @@ class Sensor:
     # Set Password - D
 
     # Set Module Address - A
+    def set_address(self, address):
+        if len(address) != 4:
+            raise Exception("Invalid Address Length")
 
-    # Set module system's basic parameter - D
+        cc = self.__send_command(IC_SET_ADDRESS, address)
 
-    # Port Control - A
+        if cc == CC_SUCCESS:
+            print("Password set successfully")
+        else:
+            raise Exception("Unable to set password, cc = " + str(cc))
 
-    # Read system Parameter - D
 
-    # Read valid template number - A
 
-    # Fingerprint verification - D
 
-    # automatic fingerprint verification - A
 
     # upload image - D
 
     # upload character file or template - A
+
 
     # To store template - D
 
@@ -316,9 +324,11 @@ class Sensor:
 
 
 sensor = Sensor('/dev/ttyUSB0', 57600)
-sensor.generate_image()
+# sensor.generate_image()
 # sensor.download_image()
-sensor.generate_charfile_image(CHAR_BUFFER_1)
+# sensor.generate_charfile_image(CHAR_BUFFER_1)
 # sensor.generate_charfile_image(CHAR_BUFFER_2)
 # sensor.generate_template()
 # sensor.download_char_buffer(CHAR_BUFFER_1)
+# print(sensor.read_valid_template_num())
+print(sensor.auto_fingerprint_verification())
