@@ -330,6 +330,28 @@ class Sensor:
         else:
             raise Exception("Invalid cc")
 
+    # Fingerprint verification - D
+
+    # automatic fingerprint verification - A
+    def auto_fingerprint_verification(self):
+        data = self.__send_command(IC_AUTO_FINGERPRINT_VERIFICATION)
+        cc = data[0:1]
+        page_id = data[1:3]
+        match_score = data[3:5]
+
+        if cc == CC_SUCCESS:
+            return page_id, match_score
+        elif cc == CC_ERROR:
+            raise Exception('Error during receiving packet')
+        elif cc == CC_DISORDERED_FINGERPRINT:
+            raise Exception('Overly disordered fingerprint')
+        elif cc == CC_VERY_SMALL_FINGERPRINT:
+            raise Exception('Very small fingerprint')
+        elif cc == CC_NO_MATCHING_FINGERPRINT:
+            raise Exception('No Matching Fingerprint')
+        else:
+            raise Exception('unrecognized cc')
+
     # upload image - D
 
     # upload character file or template - A
