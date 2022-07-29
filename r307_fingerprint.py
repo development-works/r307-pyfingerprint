@@ -316,6 +316,20 @@ class Sensor:
         elif cc == CC_FAILED_TO_OPERATE_PORT:
             raise Exception("Failed to operate communication port")
 
+    # Read system Parameter - D
+
+    # Read valid template number - A
+    def read_valid_template_num(self):
+        data = self.__send_command(IC_READ_TEMPLATE_NUM)
+        cc = data[0:1]
+        template_num = data[1:]
+        if cc == CC_SUCCESS:
+            return template_num
+        if cc == CC_ERROR:
+            raise Exception("Error when receiving package")
+        else:
+            raise Exception("Invalid cc")
+
     # upload image - D
 
     # upload character file or template - A
