@@ -23,6 +23,7 @@ IC_STORE_TEMPLATE = bytes.fromhex('06')
 IC_UPLOAD_IMAGE = bytes.fromhex('0b')
 IC_DELETE_TEMPLATE = bytes.fromhex('0c')
 IC_MATCH_TEMPLATE = bytes.fromhex('03')
+IC_RANDOM_NUMBER = bytes.fromhex('14')
 
 CC_SUCCESS = bytes.fromhex('00')
 CC_ERROR = bytes.fromhex('01')
@@ -489,7 +490,22 @@ class Sensor:
     # To empty finger library - A
 
     # To carry out precise matching of two fingerprint template - D
+    def match_template(self):
+        rcv_data = self.__send_command(IC_MATCH_TEMPLATE)
 
+        cc = rcv_data[0:1]
+        match_score = rcv_data[1:]
+
+        if cc == CC_SUCCESS:
+            print("Templates of the two buffers are matching")
+            return int.from_bytes(match_score, byteorder='big')
+        elif cc == CC_ERROR:
+            raise Exception("error when receiving package for downloading "
+                            "image")
+        elif cc == CC_UNMATCHED_TEMPLATES:
+            raise Exception("Templates of the two buffers are not matching")
+        else:
+            raise Exception("Unrecognised confirmation code")
 
 
     # To search finger library - A
@@ -504,7 +520,7 @@ class Sensor:
 sensor = Sensor('/dev/ttyUSB0', 57600)
 # sensor.generate_image()
 # sensor.download_image()
-# sensor.generate_charfile_image(CHAR_BUFFER_1)
+#sensor.generate_charfile_image(CHAR_BUFFER_1)
 # sensor.generate_charfile_image(CHAR_BUFFER_2)
 # sensor.generate_template()
 # sensor.download_char_buffer(CHAR_BUFFER_1)
@@ -514,5 +530,6 @@ sensor = Sensor('/dev/ttyUSB0', 57600)
 #sensor.store_template(CHAR_BUFFER_1, 1)
 # page_id, match_id = sensor.fingerprint_verification(CAPTURE_TIME_4_5, 1, 1)
 # print(page_id, match_id)
-
 # sensor.delete_template(1, 1)
+# match_score = sensor.match_template()
+# print(match_score)
