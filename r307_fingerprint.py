@@ -15,6 +15,16 @@ IC_DOWNLOAD_IMAGE = bytes.fromhex('0a')
 IC_GENERATE_CHARACTERISTICS = bytes.fromhex('02')
 IC_GENERATE_TEMPLATE = bytes.fromhex('05')
 IC_DOWNLOAD_CHAR_BUFFER = bytes.fromhex('08')
+IC_SET_PASSWORD = bytes.fromhex('12')
+IC_SET_PARAMETERS = bytes.fromhex('0e')
+IC_READ_PARAMETERS = bytes.fromhex('0f')
+IC_FINGERPRINT_VERIFICATION = bytes.fromhex('32')
+IC_STORE_TEMPLATE = bytes.fromhex('06')
+IC_UPLOAD_IMAGE = bytes.fromhex('0b')
+IC_DELETE_TEMPLATE = bytes.fromhex('0c')
+IC_MATCH_TEMPLATE = bytes.fromhex('03')
+IC_RANDOM_NUMBER = bytes.fromhex('14')
+IC_READ_NOTEPAD = bytes.fromhex('19')
 IC_SET_ADDRESS = bytes.fromhex('15')
 IC_SET_PORT_CONTROL = bytes.fromhex('17')
 IC_READ_TEMPLATE_NUM = bytes.fromhex('1d')
@@ -33,14 +43,36 @@ CC_VERY_SMALL_FINGERPRINT = bytes.fromhex('07')
 CC_INVALID_PRIMARY_IMAGE = bytes.fromhex('15')
 CC_CHAR_MISMATCH = bytes.fromhex('0a')
 CC_TEMPLATE_DWNLD_ERR = bytes.fromhex('0d')
+CC_WRONG_REG_NUM = bytes.fromhex('1a')
+CC_NO_MATCH = bytes.fromhex('09')
+CC_PAGE_ID_INVALID = bytes.fromhex('0b')
+CC_ERROR_FLASH_WRITING = bytes.fromhex('18')
+CC_FAIL_TRANSFER_PACKET = bytes.fromhex('0e')
+CC_FAILED_DELETE = bytes.fromhex('10')
+CC_UNMATCHED_TEMPLATES = bytes.fromhex('08')
 CC_FAILED_TO_OPERATE_PORT = bytes.fromhex('1d')
 CC_NO_MATCHING_FINGERPRINT = bytes.fromhex('09')
 CC_READOUT_TEMPLATE_INVALID = bytes.fromhex('0c')
-CC_PAGE_ID_INVALID = bytes.fromhex('0b')
 CC_FAILED_TO_CLEAR_LIBRARY = bytes.fromhex('11')
+
+# PN = parameter number
+PN_BAUD_RATE = bytes.fromhex('04')
+PN_SECURITY_LEVEL = bytes.fromhex('05')
+PN_PACKAGE_LEN = bytes.fromhex('06')
+
+
 
 CHAR_BUFFER_1 = bytes.fromhex('01')
 CHAR_BUFFER_2 = bytes.fromhex('02')
+KEY_STATUS_REGISTER = 0
+KEY_SYSTEM_IDENTIFIER_CODE = 1
+KEY_FINGER_LIBRARY_SIZE = 2
+KEY_SECURITY_LEVEL = 3
+KEY_DEVICE_ADDRESS = 4
+KEY_DATA_PACKET_SIZE = 5
+KEY_BAUD_SETTINGS = 6
+CAPTURE_TIME_4_5 = bytes.fromhex('20')
+
 
 
 class Sensor:
@@ -88,7 +120,6 @@ class Sensor:
 
     def download_image(self):
         """
-
         :return:
         """
         cc = self.__send_command(IC_DOWNLOAD_IMAGE);
@@ -121,11 +152,10 @@ class Sensor:
 
     def generate_charfile_image(self, buffer_id):
         """
-
         :param buffer_id:
         :return:
         """
-        cc = self.__send_command(IC_GENERATE_CHARACTERISTICS, buffer_id);
+        cc = self.__send_command(IC_GENERATE_CHARACTERISTICS, buffer_id)
 
         if cc == CC_SUCCESS:
             print("generate character file complete;")
@@ -258,6 +288,7 @@ class Sensor:
 
         len_rcv = self._serial.read(2)
         len_rcv = int.from_bytes(len_rcv, byteorder='big')
+        print(len_rcv)
 
         content_rcv = self._serial.read(len_rcv - 2)
 
@@ -287,6 +318,22 @@ class Sensor:
         return cc
 
     # Set Password - D
+    def set_password(self, new_password):
+        if len(new_password) !=4:
+            raise Exception("password set failed, please enter 4 bytes "
+                            "password")
+
+        cc = self.__send_command(IC_SET_PASSWORD, new_password)
+
+        if cc == CC_SUCCESS:
+            print("Password setting complete")
+        elif cc == CC_ERROR:
+            raise Exception("error when receiving package for downloading "
+                            "image")
+        else:
+            raise Exception("Unrecognised confirmation code")
+
+
 
     # Set Module Address - A
     def set_address(self, address):
@@ -301,6 +348,39 @@ class Sensor:
             raise Exception("Unable to set password, cc = " + str(cc))
 
     # Set module system's basic parameter - D
+
+    def __set_parameters(self, pn, n):
+        param_bytes = n.to_bytes(1, byteorder='big')
+        cc = self.__send_command(IC_SET_PARAMETERS, pn, param_bytes)
+
+        if cc == CC_SUCCESS:
+            print("Parameter set successfully")
+        elif cc == CC_ERROR:
+            raise Exception("error when receiving package for downloading "
+                            "image")
+        elif cc == CC_WRONG_REG_NUM:
+            raise Exception("wrong register number;")
+        else:
+            raise Exception("Unrecognised confirmation code")
+
+    def set_baudrate(self, n):
+        if n < 1 or n > 12:
+            raise ValueError('Invalid value for baudrate')
+
+        self.__set_parameters(PN_BAUD_RATE, n)
+
+    def set_security_level(self, n):
+        if n < 1 or n > 5:
+            raise ValueError('Invalid value for security')
+
+        self.__set_parameters(PN_SECURITY_LEVEL, n)
+
+    def set_package_length(self, n):
+        if n < 0 or n > 3:
+            raise ValueError('Invalid value for package length')
+
+        self.__set_parameters(PN_PACKAGE_LEN, n)
+
 
     # Port Control - A
     def set_port_control(self, val):
@@ -322,6 +402,31 @@ class Sensor:
             raise Exception("Failed to operate communication port")
 
     # Read system Parameter - D
+    def read_parameters(self):
+        data = self.__send_command(IC_READ_PARAMETERS)
+        print(data)
+
+        cc = data[0:1]
+        print(cc)
+        param = data[1:]
+
+        param_dict = {}
+        if cc == CC_SUCCESS:
+            param_dict[KEY_STATUS_REGISTER] = param[0:2]
+            param_dict[KEY_SYSTEM_IDENTIFIER_CODE] = param[2:4]
+            param_dict[KEY_FINGER_LIBRARY_SIZE] = param[4:6]
+            param_dict[KEY_SECURITY_LEVEL] = param[6:8]
+            param_dict[KEY_DEVICE_ADDRESS] = param[8:12]
+            param_dict[KEY_DATA_PACKET_SIZE] = param[12:14]
+            param_dict[KEY_BAUD_SETTINGS] = param[14:16]
+
+            return param_dict
+
+        elif cc == CC_ERROR:
+            raise Exception("error when receiving package for downloading "
+                            "image")
+        else:
+            raise Exception("Unrecognised confirmation code")
 
     # Read valid template number - A
     def read_valid_template_num(self):
@@ -336,6 +441,36 @@ class Sensor:
             raise Exception("Invalid cc")
 
     # Fingerprint verification - D
+    def fingerprint_verification(self, capture_time, start_bit,
+                                 search_quantity):
+        #TODO : Find out start bit and search quantity
+        start_bit = start_bit.to_bytes(2, byteorder='big')
+        search_quantity = search_quantity.to_bytes(2, byteorder='big')
+        data = self.__send_command(IC_FINGERPRINT_VERIFICATION, capture_time,
+                                   start_bit, search_quantity)
+
+        cc = data[0:1]
+        rcv_data = data[1:]
+
+        if cc == CC_SUCCESS:
+            return rcv_data[0:2], rcv_data[2:4]
+        elif cc == CC_ERROR:
+            raise Exception("error when receiving package for downloading "
+                            "image")
+        elif cc == CC_DISORDERED_FINGERPRINT:
+            raise Exception("fail to generate character file due to the "
+                            "over-disorderly fingerprint image")
+        elif cc == CC_VERY_SMALL_FINGERPRINT:
+            raise Exception("fail to generate character file due to lackness "
+                            "of character point or over-smallness of "
+                            "fingerprint image")
+        elif cc == CC_NO_MATCH:
+            raise Exception("No matching in the library (both the PageID and "
+                            "matching "
+                            "score are 0)")
+        else:
+            raise Exception("Unrecognised confirmation code")
+
 
     # automatic fingerprint verification - A
     def auto_fingerprint_verification(self):
@@ -358,10 +493,44 @@ class Sensor:
             raise Exception('unrecognized cc')
 
     # upload image - D
+    #TODO: figure out correct way to do it. There is discrepancy in
+    # documentation
+    '''def upload_image(self):
+        cc = self.__send_command(IC_UPLOAD_IMAGE)
+
+        if cc == CC_SUCCESS:
+            print("storage success")
+        elif cc == CC_ERROR:
+            raise Exception("error when receiving package for downloading "
+                            "image")
+        elif cc == CC_WRONG_PAGE_ID:
+            raise Exception("addressing PageID is beyond the finger library;")
+        elif cc == CC_ERROR_FLASH_WRITING:
+            raise Exception("error when writing Flash")
+        else:
+            raise Exception("Unrecognised confirmation code")'''
+
 
     # upload character file or template - A
 
     # To store template - D
+    def store_template(self, buffer_id, page_id):
+        #TODO: Find out correct page_id
+
+        page_id = page_id.to_bytes(2, byteorder='big')
+        cc = self.__send_command(IC_STORE_TEMPLATE, buffer_id, page_id)
+
+        if cc == CC_SUCCESS:
+            print("storage success")
+        elif cc == CC_ERROR:
+            raise Exception("error when receiving package for downloading "
+                            "image")
+        elif cc == CC_PAGE_ID_INVALID:
+            raise Exception("addressing PageID is beyond the finger library;")
+        elif cc == CC_ERROR_FLASH_WRITING:
+            raise Exception("error when writing Flash")
+        else:
+            raise Exception("Unrecognised confirmation code")
 
     # To Read template from flash library - A
     def read_template(self, buffer_id, page_id):
@@ -386,6 +555,23 @@ class Sensor:
             raise Exception('Unrecognized cc')
 
     # To delete template - D
+    def delete_template(self, page_id, n):
+        page_id = page_id.to_bytes(2, byteorder='big')
+        n = n.to_bytes(2, byteorder='big')
+
+        cc = self.__send_command(IC_DELETE_TEMPLATE, page_id, n)
+
+        if cc == CC_SUCCESS:
+            print("Deleted successfully")
+        elif cc == CC_ERROR:
+            raise Exception("error when receiving package for downloading "
+                            "image")
+        elif cc == CC_FAILED_DELETE:
+            raise Exception("failed to delete templates")
+        else:
+            raise Exception("Unrecognised confirmation code")
+
+
 
     # To empty finger library - A
     def empty_fingerprint_library(self):
@@ -401,14 +587,60 @@ class Sensor:
             raise Exception('Unrecognized cc')
 
     # To carry out precise matching of two fingerprint template - D
+    def match_template(self):
+        rcv_data = self.__send_command(IC_MATCH_TEMPLATE)
+
+        cc = rcv_data[0:1]
+        match_score = rcv_data[1:]
+
+        if cc == CC_SUCCESS:
+            print("Templates of the two buffers are matching")
+            return int.from_bytes(match_score, byteorder='big')
+        elif cc == CC_ERROR:
+            raise Exception("error when receiving package for downloading "
+                            "image")
+        elif cc == CC_UNMATCHED_TEMPLATES:
+            raise Exception("Templates of the two buffers are not matching")
+        else:
+            raise Exception("Unrecognised confirmation code")
+
 
     # To search finger library - A
 
     # To Generate a random code - D
+    def get_random_number(self):
+        rcv_data = self.__send_command(IC_RANDOM_NUMBER)
+
+        cc = rcv_data[0:1]
+        random_number = rcv_data[1:]
+
+        if cc == CC_SUCCESS:
+            print("Random Number generated successfully")
+            return int.from_bytes(random_number, byteorder='big')
+        elif cc == CC_ERROR:
+            raise Exception("error when receiving package for downloading "
+                            "image")
+        else:
+            raise Exception("Unrecognised confirmation code")
 
     # To Write Notepad - A
 
     # To Read Notepad - D
+    def read_notepad(self):
+        rcv_data = self.__send_command(IC_READ_NOTEPAD)
+
+        cc = rcv_data[0:1]
+        notepad_content = rcv_data[1:]
+
+        if cc == CC_SUCCESS:
+            print("Read successful")
+            return str(notepad_content, 'UTF-8')
+        elif cc == CC_ERROR:
+            raise Exception("error when receiving package for downloading "
+                            "image")
+        else:
+            raise Exception("Unrecognised confirmation code")
+
 
 
 sensor = Sensor('/dev/ttyUSB0', 57600)
@@ -418,7 +650,18 @@ sensor = Sensor('/dev/ttyUSB0', 57600)
 # sensor.generate_charfile_image(CHAR_BUFFER_2)
 # sensor.generate_template()
 # sensor.download_char_buffer(CHAR_BUFFER_1)
+#param_dict = sensor.read_parameters()
+#print(param_dict)
+
+#sensor.store_template(CHAR_BUFFER_1, 1)
+# page_id, match_id = sensor.fingerprint_verification(CAPTURE_TIME_4_5, 1, 1)
+# print(page_id, match_id)
+# sensor.delete_template(1, 1)
+# match_score = sensor.match_template()
+# print(match_score)
+# print(sensor.get_random_number())
+# print(sensor.read_notepad())
 # print(sensor.read_valid_template_num())
 # print(sensor.auto_fingerprint_verification())
 # sensor.read_template(CHAR_BUFFER_1, 0)
-sensor.empty_fingerprint_library()
+# sensor.empty_fingerprint_library()
