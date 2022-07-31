@@ -1,3 +1,4 @@
 # Python Fingerprint Library for R30x Fingerprint sensors
 
-This work is under progress any contributions appreciated.
+This is an implementation of python library for Fingerprint Sensors of series 
+R30x.
