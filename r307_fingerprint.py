@@ -45,22 +45,22 @@ CC_CHAR_MISMATCH = bytes.fromhex('0a')
 CC_TEMPLATE_DWNLD_ERR = bytes.fromhex('0d')
 CC_WRONG_REG_NUM = bytes.fromhex('1a')
 CC_NO_MATCH = bytes.fromhex('09')
-CC_WRONG_PAGE_ID = bytes.fromhex('0b')
+CC_PAGE_ID_INVALID = bytes.fromhex('0b')
 CC_ERROR_FLASH_WRITING = bytes.fromhex('18')
 CC_FAIL_TRANSFER_PACKET = bytes.fromhex('0e')
 CC_FAILED_DELETE = bytes.fromhex('10')
 CC_UNMATCHED_TEMPLATES = bytes.fromhex('08')
+CC_FAILED_TO_OPERATE_PORT = bytes.fromhex('1d')
+CC_NO_MATCHING_FINGERPRINT = bytes.fromhex('09')
+CC_READOUT_TEMPLATE_INVALID = bytes.fromhex('0c')
+CC_FAILED_TO_CLEAR_LIBRARY = bytes.fromhex('11')
 
 # PN = parameter number
 PN_BAUD_RATE = bytes.fromhex('04')
 PN_SECURITY_LEVEL = bytes.fromhex('05')
 PN_PACKAGE_LEN = bytes.fromhex('06')
 
-CC_FAILED_TO_OPERATE_PORT = bytes.fromhex('1d')
-CC_NO_MATCHING_FINGERPRINT = bytes.fromhex('09')
-CC_READOUT_TEMPLATE_INVALID = bytes.fromhex('0c')
-CC_PAGE_ID_INVALID = bytes.fromhex('0b')
-CC_FAILED_TO_CLEAR_LIBRARY = bytes.fromhex('11')
+
 
 CHAR_BUFFER_1 = bytes.fromhex('01')
 CHAR_BUFFER_2 = bytes.fromhex('02')
@@ -525,7 +525,7 @@ class Sensor:
         elif cc == CC_ERROR:
             raise Exception("error when receiving package for downloading "
                             "image")
-        elif cc == CC_WRONG_PAGE_ID:
+        elif cc == CC_PAGE_ID_INVALID:
             raise Exception("addressing PageID is beyond the finger library;")
         elif cc == CC_ERROR_FLASH_WRITING:
             raise Exception("error when writing Flash")
@@ -659,9 +659,9 @@ sensor = Sensor('/dev/ttyUSB0', 57600)
 # sensor.delete_template(1, 1)
 # match_score = sensor.match_template()
 # print(match_score)
-#print(sensor.get_random_number())
-print(sensor.read_notepad())
+# print(sensor.get_random_number())
+# print(sensor.read_notepad())
 # print(sensor.read_valid_template_num())
 # print(sensor.auto_fingerprint_verification())
 # sensor.read_template(CHAR_BUFFER_1, 0)
-sensor.empty_fingerprint_library()
+# sensor.empty_fingerprint_library()
