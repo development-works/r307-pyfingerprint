@@ -25,6 +25,12 @@ IC_DELETE_TEMPLATE = bytes.fromhex('0c')
 IC_MATCH_TEMPLATE = bytes.fromhex('03')
 IC_RANDOM_NUMBER = bytes.fromhex('14')
 IC_READ_NOTEPAD = bytes.fromhex('19')
+IC_SET_ADDRESS = bytes.fromhex('15')
+IC_SET_PORT_CONTROL = bytes.fromhex('17')
+IC_READ_TEMPLATE_NUM = bytes.fromhex('1d')
+IC_AUTO_FINGERPRINT_VERIFICATION = bytes.fromhex('34')
+IC_READ_TEMPLATE = bytes.fromhex('07')
+IC_EMPTY_FINGERPRINT_LIBRARY = bytes.fromhex('0d')
 
 CC_SUCCESS = bytes.fromhex('00')
 CC_ERROR = bytes.fromhex('01')
@@ -50,6 +56,11 @@ PN_BAUD_RATE = bytes.fromhex('04')
 PN_SECURITY_LEVEL = bytes.fromhex('05')
 PN_PACKAGE_LEN = bytes.fromhex('06')
 
+CC_FAILED_TO_OPERATE_PORT = bytes.fromhex('1d')
+CC_NO_MATCHING_FINGERPRINT = bytes.fromhex('09')
+CC_READOUT_TEMPLATE_INVALID = bytes.fromhex('0c')
+CC_PAGE_ID_INVALID = bytes.fromhex('0b')
+CC_FAILED_TO_CLEAR_LIBRARY = bytes.fromhex('11')
 
 CHAR_BUFFER_1 = bytes.fromhex('01')
 CHAR_BUFFER_2 = bytes.fromhex('02')
@@ -94,7 +105,7 @@ class Sensor:
         :return:
         """
         time.sleep(2)
-        cc = self.__send_command(IC_GENERATE_IMAGE);
+        cc = self.__send_command(IC_GENERATE_IMAGE)
 
         if cc == CC_SUCCESS:
             print("Finger Collection Success")
@@ -192,7 +203,6 @@ class Sensor:
         # pid_rcv, content_rcv = self.__receive_packet()
 
         cc = self.__send_command(IC_DOWNLOAD_CHAR_BUFFER, buffer_id);
-
 
         if cc == CC_SUCCESS:
             print("Downloading the fingerprint image")
@@ -326,6 +336,16 @@ class Sensor:
 
 
     # Set Module Address - A
+    def set_address(self, address):
+        if len(address) != 4:
+            raise Exception("Invalid Address Length")
+
+        cc = self.__send_command(IC_SET_ADDRESS, address)
+
+        if cc == CC_SUCCESS:
+            print("Password set successfully")
+        else:
+            raise Exception("Unable to set password, cc = " + str(cc))
 
     # Set module system's basic parameter - D
 
@@ -363,6 +383,23 @@ class Sensor:
 
 
     # Port Control - A
+    def set_port_control(self, val):
+        """
+
+        :param val, bool:
+        :return:
+        """
+        zero = int(0).to_bytes(1, byteorder='big')
+        one = int(1).to_bytes(1, byteorder='big')
+
+        cc = self.__send_command(IC_SET_PORT_CONTROL, one if val else zero)
+
+        if cc == CC_SUCCESS:
+            print("port control set successfully")
+        if cc == CC_ERROR:
+            print("Error when receiving packet")
+        elif cc == CC_FAILED_TO_OPERATE_PORT:
+            raise Exception("Failed to operate communication port")
 
     # Read system Parameter - D
     def read_parameters(self):
@@ -392,6 +429,16 @@ class Sensor:
             raise Exception("Unrecognised confirmation code")
 
     # Read valid template number - A
+    def read_valid_template_num(self):
+        data = self.__send_command(IC_READ_TEMPLATE_NUM)
+        cc = data[0:1]
+        template_num = data[1:]
+        if cc == CC_SUCCESS:
+            return template_num
+        if cc == CC_ERROR:
+            raise Exception("Error when receiving package")
+        else:
+            raise Exception("Invalid cc")
 
     # Fingerprint verification - D
     def fingerprint_verification(self, capture_time, start_bit,
@@ -426,6 +473,24 @@ class Sensor:
 
 
     # automatic fingerprint verification - A
+    def auto_fingerprint_verification(self):
+        data = self.__send_command(IC_AUTO_FINGERPRINT_VERIFICATION)
+        cc = data[0:1]
+        page_id = data[1:3]
+        match_score = data[3:5]
+
+        if cc == CC_SUCCESS:
+            return page_id, match_score
+        elif cc == CC_ERROR:
+            raise Exception('Error during receiving packet')
+        elif cc == CC_DISORDERED_FINGERPRINT:
+            raise Exception('Overly disordered fingerprint')
+        elif cc == CC_VERY_SMALL_FINGERPRINT:
+            raise Exception('Very small fingerprint')
+        elif cc == CC_NO_MATCHING_FINGERPRINT:
+            raise Exception('No Matching Fingerprint')
+        else:
+            raise Exception('unrecognized cc')
 
     # upload image - D
     #TODO: figure out correct way to do it. There is discrepancy in
@@ -468,6 +533,26 @@ class Sensor:
             raise Exception("Unrecognised confirmation code")
 
     # To Read template from flash library - A
+    def read_template(self, buffer_id, page_id):
+        """
+
+        :param buffer_id, bytes:
+        :param page_id, int:
+        :return:
+        """
+        page_id = page_id.to_bytes(2, byteorder='big')
+        cc = self.__send_command(IC_READ_TEMPLATE, buffer_id, page_id)
+
+        if cc == CC_SUCCESS:
+            print("Read template successfully")
+        elif cc == CC_ERROR:
+            raise Exception('Failed to received package')
+        elif cc == CC_READOUT_TEMPLATE_INVALID:
+            raise Exception('Invalid readout template')
+        elif cc == CC_PAGE_ID_INVALID:
+            raise Exception('Invalid Page ID')
+        else:
+            raise Exception('Unrecognized cc')
 
     # To delete template - D
     def delete_template(self, page_id, n):
@@ -489,6 +574,17 @@ class Sensor:
 
 
     # To empty finger library - A
+    def empty_fingerprint_library(self):
+        cc = self.__send_command(IC_EMPTY_FINGERPRINT_LIBRARY)
+
+        if cc == CC_SUCCESS:
+            print('Finger print library emptied')
+        elif cc == CC_ERROR:
+            raise Exception('Error when receiving packet')
+        elif cc == CC_FAILED_TO_CLEAR_LIBRARY:
+            raise Exception('Failed to Clear Library')
+        else:
+            raise Exception('Unrecognized cc')
 
     # To carry out precise matching of two fingerprint template - D
     def match_template(self):
@@ -550,7 +646,7 @@ class Sensor:
 sensor = Sensor('/dev/ttyUSB0', 57600)
 # sensor.generate_image()
 # sensor.download_image()
-#sensor.generate_charfile_image(CHAR_BUFFER_1)
+# sensor.generate_charfile_image(CHAR_BUFFER_1)
 # sensor.generate_charfile_image(CHAR_BUFFER_2)
 # sensor.generate_template()
 # sensor.download_char_buffer(CHAR_BUFFER_1)
@@ -565,3 +661,7 @@ sensor = Sensor('/dev/ttyUSB0', 57600)
 # print(match_score)
 #print(sensor.get_random_number())
 print(sensor.read_notepad())
+# print(sensor.read_valid_template_num())
+# print(sensor.auto_fingerprint_verification())
+# sensor.read_template(CHAR_BUFFER_1, 0)
+sensor.empty_fingerprint_library()
